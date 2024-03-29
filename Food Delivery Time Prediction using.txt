@@ -1,0 +1,329 @@
+Food Delivery Time Prediction using Python
+
+(Using an LSTM neural network model)
+
+IN[]:
+import pandas as pd
+import numpy as np
+import plotly.express as px
+
+data = pd.read_csv("/content/deliverytime.txt")
+print(data.head())
+
+OUT[]:
+ID Delivery_person_ID  Delivery_person_Age  Delivery_person_Ratings  \
+0  4607     INDORES13DEL02                 37.0                      4.9   
+1  B379     BANGRES18DEL02                 34.0                      4.5   
+2  5D6D     BANGRES19DEL01                 23.0                      4.4   
+3  7A6A    COIMBRES13DEL02                 38.0                      4.7   
+4  70A2     CHENRES12DEL01                 32.0                      4.6   
+
+   Restaurant_latitude  Restaurant_longitude  Delivery_location_latitude  \
+0            22.745049             75.892471                   22.765049   
+1            12.913041             77.683237                   13.043041   
+2            12.914264             77.678400                   12.924264   
+3            11.003669             76.976494                   11.053669   
+4            12.972793             80.249982                   13.012793   
+
+   Delivery_location_longitude Type_of_order Type_of_vehicle  Time_taken(min)  
+0                    75.912471        Snack      motorcycle              24.0  
+1                    77.813237        Snack         scooter              33.0  
+2                    77.688400       Drinks      motorcycle              26.0  
+3                    77.026494       Buffet      motorcycle              21.0  
+4                    80.289982        Snack         scooter              30.0  
+
+IN[]:
+data.info()
+
+OUT[]:
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 36589 entries, 0 to 36588
+Data columns (total 11 columns):
+ #   Column                       Non-Null Count  Dtype  
+---  ------                       --------------  -----  
+ 0   ID                           36589 non-null  object 
+ 1   Delivery_person_ID           36589 non-null  object 
+ 2   Delivery_person_Age          36588 non-null  float64
+ 3   Delivery_person_Ratings      36588 non-null  float64
+ 4   Restaurant_latitude          36588 non-null  float64
+ 5   Restaurant_longitude         36588 non-null  float64
+ 6   Delivery_location_latitude   36588 non-null  float64
+ 7   Delivery_location_longitude  36588 non-null  float64
+ 8   Type_of_order                36588 non-null  object 
+ 9   Type_of_vehicle              36588 non-null  object 
+ 10  Time_taken(min)              36588 non-null  float64
+dtypes: float64(7), object(4)
+memory usage: 3.1+ MB
+
+IN[]:
+data.isnull().sum()
+
+OUT[]:
+ID                             0
+Delivery_person_ID             0
+Delivery_person_Age            1
+Delivery_person_Ratings        1
+Restaurant_latitude            1
+Restaurant_longitude           1
+Delivery_location_latitude     1
+Delivery_location_longitude    1
+Type_of_order                  1
+Type_of_vehicle                1
+Time_taken(min)                1
+dtype: int64
+
+IN[]:
+# Function to calculate distance using Haversine formula
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great-circle distance between two points 
+    on the Earth's surface given their latitudes and longitudes
+    """
+    # Convert latitude and longitude from degrees to radians
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+
+    # Haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    
+    # Radius of Earth in kilometers
+    R = 6371.0
+    
+    # Calculate the distance
+    distance = R * c
+    return distance
+
+# Example usage:
+# Calculate distance for each row in the dataset
+data['distance'] = haversine_distance(data['Restaurant_latitude'], data['Restaurant_longitude'],
+                                      data['Delivery_location_latitude'], data['Delivery_location_longitude'])
+
+# Display the updated dataset with the distance column
+print(data.head())
+
+OUT[]:
+ID Delivery_person_ID  Delivery_person_Age  Delivery_person_Ratings  \
+0  4607     INDORES13DEL02                 37.0                      4.9   
+1  B379     BANGRES18DEL02                 34.0                      4.5   
+2  5D6D     BANGRES19DEL01                 23.0                      4.4   
+3  7A6A    COIMBRES13DEL02                 38.0                      4.7   
+4  70A2     CHENRES12DEL01                 32.0                      4.6   
+
+   Restaurant_latitude  Restaurant_longitude  Delivery_location_latitude  \
+0            22.745049             75.892471                   22.765049   
+1            12.913041             77.683237                   13.043041   
+2            12.914264             77.678400                   12.924264   
+3            11.003669             76.976494                   11.053669   
+4            12.972793             80.249982                   13.012793   
+
+   Delivery_location_longitude Type_of_order Type_of_vehicle  Time_taken(min)  \
+0                    75.912471        Snack      motorcycle              24.0   
+1                    77.813237        Snack         scooter              33.0   
+2                    77.688400       Drinks      motorcycle              26.0   
+3                    77.026494       Buffet      motorcycle              21.0   
+4                    80.289982        Snack         scooter              30.0   
+
+    distance  
+0   3.025149  
+1  20.183530  
+2   1.552758  
+3   7.790401  
+4   6.210138  
+
+IN[]:
+import plotly.express as px
+
+# Scatter plot to visualize the relationship between distance and time taken
+scatter_plot = px.scatter(data, x='distance', y='Time_taken(min)', 
+                          title='Relationship between Distance and Time Taken for Delivery',
+                          labels={'distance': 'Distance (km)', 'Time_taken(min)': 'Time Taken (minutes)'})
+
+# Show the scatter plot
+scatter_plot.show()
+
+OUT[]:
+// GRAPH
+
+
+IN[]:
+import plotly.express as px
+
+# Scatter plot to visualize the relationship between age of delivery partner and time taken
+scatter_plot_age = px.scatter(data, x='Delivery_person_Age', y='Time_taken(min)', 
+                               title='Relationship between Delivery Person Age and Time Taken for Delivery',
+                               labels={'Delivery_person_Age': 'Delivery Person Age', 'Time_taken(min)': 'Time Taken (minutes)'})
+
+# Show the scatter plot
+scatter_plot_age.show()
+
+
+OUT[]:
+// GRAPH
+
+IN[]:
+import plotly.express as px
+
+# Scatter plot to visualize the relationship between ratings of delivery partner and time taken
+scatter_plot_ratings = px.scatter(data, x='Delivery_person_Ratings', y='Time_taken(min)', 
+                                  title='Relationship between Delivery Person Ratings and Time Taken for Delivery',
+                                  labels={'Delivery_person_Ratings': 'Delivery Person Ratings', 'Time_taken(min)': 'Time Taken (minutes)'})
+
+# Show the scatter plot
+scatter_plot_ratings.show()
+
+OUT[]:
+GRAPH
+
+IN[]:
+# Calculate average time taken for delivery for each combination of food type and vehicle type
+average_delivery_time = data.groupby(['Type_of_order', 'Type_of_vehicle'])['Time_taken(min)'].mean().reset_index()
+
+# Display the average delivery time for each combination
+print("Average Time Taken for Delivery by Type of Order and Type of Vehicle:")
+print(average_delivery_time)
+
+OUT[]:
+Average Time Taken for Delivery by Type of Order and Type of Vehicle:
+   Type_of_order    Type_of_vehicle  Time_taken(min)
+0        Buffet            bicycle         25.307692
+1        Buffet   electric_scooter         24.399209
+2        Buffet         motorcycle         27.636675
+3        Buffet            scooter         24.457972
+4        Drinks            bicycle         24.615385
+5        Drinks   electric_scooter         24.678899
+6        Drinks         motorcycle         27.394108
+7        Drinks            scooter         24.558881
+8          Meal            bicycle         25.571429
+9          Meal   electric_scooter         24.490838
+10         Meal         motorcycle         27.712684
+11         Meal            scooter         24.659807
+12        Snack            bicycle         26.500000
+13        Snack   electric_scooter         24.451444
+14        Snack         motorcycle         27.788714
+15        Snack            scooter         24.295527
+
+IN[]:
+import plotly.express as px
+
+# Create a box plot to visualize the relationship between type of vehicle, time taken, and type of order
+fig = px.box(data, x="Type_of_vehicle", y="Time_taken(min)", color="Type_of_order",
+             title="Box Plot of Time Taken for Delivery by Type of Vehicle and Type of Order",
+             labels={"Type_of_vehicle": "Type of Vehicle", "Time_taken(min)": "Time Taken (minutes)"},
+             points="all",  # Show individual data points
+             hover_data=["Delivery_person_ID", "Delivery_person_Age", "Delivery_person_Ratings", 
+                         "Restaurant_latitude", "Restaurant_longitude", 
+                         "Delivery_location_latitude", "Delivery_location_longitude",
+                         "Type_of_order"])  # Additional hover data
+
+# Set the layout property to make the background transparent
+fig.update_layout(
+    plot_bgcolor='rgba(0,0,0,0)',  # Transparent background
+    paper_bgcolor='rgba(0,0,0,0)'  # Transparent paper (plot area) background
+)
+
+# Show the box plot
+fig.show()
+
+
+OUT[]:
+// GRAPH
+
+IN[]:
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Dense, LSTM
+from geopy.distance import geodesic
+
+# Load the dataset
+data = pd.read_csv("/content/deliverytime.txt")
+
+# Drop rows with missing values in latitude and longitude columns
+data.dropna(subset=['Restaurant_latitude', 'Restaurant_longitude', 
+                    'Delivery_location_latitude', 'Delivery_location_longitude'], inplace=True)
+
+# Calculate distance based on latitude and longitude
+data['distance'] = data.apply(lambda row: geodesic((row['Restaurant_latitude'], row['Restaurant_longitude']), 
+                                                   (row['Delivery_location_latitude'], row['Delivery_location_longitude'])).kilometers, axis=1)
+
+# Splitting the data
+x = np.array(data[["Delivery_person_Age", "Delivery_person_Ratings", "distance"]])
+y = np.array(data["Time_taken(min)"])
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.10, random_state=42)
+
+# Creating the LSTM neural network model
+model = Sequential()
+model.add(LSTM(128, return_sequences=True, input_shape=(x_train.shape[1], 1)))
+model.add(LSTM(64, return_sequences=False))
+model.add(Dense(25, activation='relu'))
+model.add(Dense(1, activation='linear'))
+model.summary()
+
+
+OUT[]:
+Model: "sequential_3"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ lstm_5 (LSTM)               (None, 3, 128)            66560     
+                                                                 
+ lstm_6 (LSTM)               (None, 64)                49408     
+                                                                 
+ dense_5 (Dense)             (None, 25)                1625      
+                                                                 
+ dense_6 (Dense)             (None, 1)                 26        
+                                                                 
+=================================================================
+Total params: 117619 (459.45 KB)
+Trainable params: 117619 (459.45 KB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+
+
+IN[]:
+# Training the model
+model.compile(optimizer='adam', loss='mean_squared_error')
+model.fit(x_train, y_train, batch_size=1, epochs=9)
+
+OUT[]:
+Epoch 1/9
+32929/32929 [==============================] - 187s 6ms/step - loss: 57.9466
+Epoch 2/9
+32929/32929 [==============================] - 192s 6ms/step - loss: 57.7701
+Epoch 3/9
+32929/32929 [==============================] - 183s 6ms/step - loss: 57.7905
+Epoch 4/9
+32929/32929 [==============================] - 181s 5ms/step - loss: 57.5307
+Epoch 5/9
+32929/32929 [==============================] - 182s 6ms/step - loss: 57.3977
+Epoch 6/9
+32929/32929 [==============================] - 186s 6ms/step - loss: 57.3800
+Epoch 7/9
+32929/32929 [==============================] - 190s 6ms/step - loss: 57.2722
+Epoch 8/9
+32929/32929 [==============================] - 192s 6ms/step - loss: 57.1799
+Epoch 9/9
+32929/32929 [==============================] - 193s 6ms/step - loss: 57.7327
+<keras.src.callbacks.History at 0x79ffbfd28340>
+
+
+IN[]:
+print("Food Delivery Time Prediction")
+a = int(input("Age of Delivery Partner: "))
+b = float(input("Ratings of Previous Deliveries: "))
+c = int(input("Total Distance: "))
+
+features = np.array([[a, b, c]])
+print("Predicted Delivery Time in Minutes = ", model.predict(features))
+
+OUT[]:
+Food Delivery Time Prediction
+Age of Delivery Partner: 29
+Ratings of Previous Deliveries: 2.9
+Total Distance: 6
+1/1 [==============================] - 0s 23ms/step
+Predicted Delivery Time in Minutes =  [[-0.08346558]]
